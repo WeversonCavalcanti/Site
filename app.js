@@ -1,6 +1,5 @@
-// Configurações do Discord (Usando o ID do Apolo)
-const DISCORD_CLIENT_ID = '1143208423505277068';
-// URL limpa sem parâmetros para o Discord conseguir redirecionar de volta
+// Configurações do Discord
+const DISCORD_CLIENT_ID = '887831186188148747';
 const REDIRECT_URI = encodeURIComponent(window.location.origin + window.location.pathname);
 
 // Variáveis Globais
@@ -8,7 +7,7 @@ let myProfile = { username: 'Convidado', avatar: 'https://cdn.discordapp.com/emb
 let hostIdToConnect = null;
 let connections = [];
 let roomUsers = []; 
-const peer = new Peer();
+let peer; 
 
 // Elementos da UI
 const loginOverlay = document.getElementById('login-overlay');
@@ -22,33 +21,43 @@ const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 const viewerCountSpan = document.getElementById('viewer-count');
+const leaveBtn = document.getElementById('leave-btn');
+const stopStreamBtn = document.getElementById('stop-stream-btn');
 
-// 1. GERENCIAMENTO DE LOGIN
+// Perfil do Bot de Sistema
+const sysProfile = { username: 'Sistema', avatar: 'https://cdn.discordapp.com/embed/avatars/3.png' };
+
+// 1. GERENCIAMENTO DE LOGIN E SESSÃO
 function checkAuth() {
-    // Verifica se tem link de convite na URL e salva para não perder no redirecionamento do Discord
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('watch')) {
-        localStorage.setItem('savedRoomId', urlParams.get('watch'));
-    }
+    const watchId = urlParams.get('watch');
     
-    // Verifica se acabou de voltar do login do Discord
     const fragment = new URLSearchParams(window.location.hash.slice(1));
-    const accessToken = fragment.get('access_token');
+    const urlToken = fragment.get('access_token');
 
-    if (accessToken) {
-        // Limpa a URL para ficar bonita
-        window.history.replaceState(null, null, window.location.pathname);
-        fetchDiscordProfile(accessToken);
-    } else {
-        // Mostra a tela de login
-        loginOverlay.style.display = 'flex';
+    if (watchId) {
+        localStorage.setItem('savedRoomId', watchId);
+    } else if (!urlToken) {
+        localStorage.removeItem('savedRoomId');
     }
 
-    // Botão de login do Discord
-    document.getElementById('login-discord-btn').addEventListener('click', () => {
+    if (urlToken) {
+        localStorage.setItem('discordToken', urlToken);
+        window.history.replaceState(null, null, window.location.pathname);
+        fetchDiscordProfile(urlToken);
+    } else {
+        const savedToken = localStorage.getItem('discordToken');
+        if (savedToken) {
+            fetchDiscordProfile(savedToken);
+        } else {
+            loginOverlay.style.display = 'flex';
+        }
+    }
+
+    document.getElementById('login-discord-btn').onclick = () => {
         const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=identify`;
         window.location.href = discordAuthUrl;
-    });
+    };
 }
 
 async function fetchDiscordProfile(token) {
@@ -56,16 +65,17 @@ async function fetchDiscordProfile(token) {
         const response = await fetch('https://discord.com/api/users/@me', {
             headers: { authorization: `Bearer ${token}` }
         });
+        
+        if (!response.ok) throw new Error("Token expirado");
+        
         const userData = await response.json();
         
         myProfile.username = userData.global_name || userData.username;
         myProfile.avatar = userData.avatar ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png` : 'https://cdn.discordapp.com/embed/avatars/0.png';
         
-        // Login com sucesso! Libera a interface principal
         loginOverlay.style.display = 'none';
         mainContainer.style.display = 'flex';
         
-        // Verifica se estava tentando entrar em uma sala antes de logar
         hostIdToConnect = localStorage.getItem('savedRoomId');
         
         if (hostIdToConnect) {
@@ -74,8 +84,8 @@ async function fetchDiscordProfile(token) {
             initHost();
         }
     } catch (error) {
-        console.error("Erro no login:", error);
-        alert("Falha ao autenticar com o Discord.");
+        console.error("Erro no login automático:", error);
+        localStorage.removeItem('discordToken');
         loginOverlay.style.display = 'flex';
     }
 }
@@ -107,23 +117,22 @@ function renderUserList() {
         `;
         userList.appendChild(li);
     });
-    viewerCountSpan.textContent = roomUsers.length > 0 ? roomUsers.length - 1 : 0; // Exclui o Host da contagem
+    viewerCountSpan.textContent = roomUsers.length > 0 ? roomUsers.length - 1 : 0;
 }
 
 // 3. MODO VISUALIZADOR (Amigo assistindo)
 function initViewer() {
-    let dataConn;
     broadcasterUi.style.display = 'none';
-    
-    // Adiciona o próprio perfil na lista local (será sobrescrito pelo Host para sincronia)
     roomUsers = [{ ...myProfile, isHost: false }];
     renderUserList();
+
+    peer = new Peer();
+    let dataConn;
 
     peer.on('open', () => {
         dataConn = peer.connect(hostIdToConnect);
         
         dataConn.on('open', () => {
-            // Assim que conecta, manda os dados do Discord para o Host
             dataConn.send({ type: 'join', profile: myProfile });
             connections.push(dataConn);
         });
@@ -132,7 +141,6 @@ function initViewer() {
             if (data.type === 'chat') {
                 addChatMessage(data.profile, data.message);
             } else if (data.type === 'room_update') {
-                // Host atualizou a lista de quem tá na sala
                 roomUsers = data.users;
                 renderUserList();
             }
@@ -143,17 +151,18 @@ function initViewer() {
         call.answer();
         call.on('stream', (remoteStream) => {
             video.srcObject = remoteStream;
+            video.muted = false; // Desmuta para a pessoa escutar a live!
         });
     });
 
-    sendBtn.addEventListener('click', () => {
+    sendBtn.onclick = () => {
         const msg = chatInput.value;
         if (msg && dataConn && dataConn.open) {
             dataConn.send({ type: 'chat', profile: myProfile, message: msg });
             addChatMessage(myProfile, msg);
             chatInput.value = '';
         }
-    });
+    };
 }
 
 // 4. MODO TRANSMISSOR (Você transmitindo)
@@ -161,55 +170,111 @@ function initHost() {
     broadcasterUi.style.display = 'block';
     let myStream;
     
-    // O Host é o primeiro da lista
     roomUsers = [{ ...myProfile, isHost: true }];
     renderUserList();
-    
-    // Limpa a sala salva caso você decida ser o host depois de ser viewer
     localStorage.removeItem('savedRoomId');
-    
-    startBtn.addEventListener('click', async () => {
+
+    peer = new Peer();
+
+    startBtn.onclick = async () => {
+        if (!peer.id) {
+            alert("Aguarde 2 segundinhos, o servidor de salas ainda está carregando seu ID...");
+            return;
+        }
+
+        const qualityBox = document.getElementById('quality-select');
+        let videoQuality = true;
+
+        if (qualityBox) {
+            if (qualityBox.value === '1080') {
+                videoQuality = { width: 1920, height: 1080, frameRate: 60 };
+            } else {
+                videoQuality = { width: 1280, height: 720, frameRate: 30 };
+            }
+        }
+
         try {
-            myStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            myStream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: videoQuality, 
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false 
+                } 
+            });
+            
             video.srcObject = myStream;
-            video.muted = true;
+            video.muted = true; 
             
             const link = `${window.location.origin}${window.location.pathname}?watch=${peer.id}`;
             shareLink.href = link;
             shareLink.textContent = "Copiar Link de Convite";
-            shareLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                navigator.clipboard.writeText(link);
-                alert("Link copiado! Mande no Discord.");
-            });
             
+            shareLink.onclick = async (e) => {
+                e.preventDefault();
+                try {
+                    await navigator.clipboard.writeText(link);
+                    shareLink.textContent = "Link Copiado! ✅";
+                    alert("Link copiado para a área de transferência!");
+                } catch (err) {
+                    prompt("Copie o link da sala (Ctrl+C):", link);
+                }
+            };
+            
+            // Esconde a interface de começar e mostra o botão de parar
             broadcasterUi.style.display = 'none';
+            stopStreamBtn.style.display = 'inline-block';
+
+            // OTIMIZAÇÃO: Liga a câmera/tela para todo mundo que JÁ ESTÁ na sala
+            connections.forEach(conn => {
+                if (conn.open) {
+                    peer.call(conn.peer, myStream);
+                }
+            });
+
         } catch (err) {
             console.error("Erro ao capturar tela:", err);
         }
-    });
+    };
+
+    // Função de PARAR TRANSMISSÃO
+    stopStreamBtn.onclick = () => {
+        if (myStream) {
+            myStream.getTracks().forEach(track => track.stop());
+            myStream = null;
+        }
+        video.srcObject = null;
+        
+        // Troca os botões de volta
+        stopStreamBtn.style.display = 'none';
+        broadcasterUi.style.display = 'block';
+
+        // Avisa no chat
+        const stopMsg = "A transmissão foi pausada pelo Host. ⏸️";
+        addChatMessage(sysProfile, stopMsg);
+        broadcastData({ type: 'chat', profile: sysProfile, message: stopMsg });
+    };
 
     peer.on('connection', (conn) => {
         connections.push(conn);
 
         conn.on('data', (data) => {
             if (data.type === 'join') {
-                // Alguém entrou e mandou a foto do Discord!
                 const newUser = { ...data.profile, peerId: conn.peer, isHost: false };
                 roomUsers.push(newUser);
                 renderUserList();
-                addChatMessage({ username: 'Sistema', avatar: 'https://cdn.discordapp.com/embed/avatars/3.png' }, `${newUser.username} entrou na sala!🍿`);
                 
-                // Manda a lista atualizada pra todo mundo
+                const joinMsg = `${newUser.username} entrou na sala! 🍿`;
+                addChatMessage(sysProfile, joinMsg);
+                broadcastData({ type: 'chat', profile: sysProfile, message: joinMsg });
+                
                 broadcastData({ type: 'room_update', users: roomUsers });
                 
-                // Se a live já começou, liga pra quem acabou de entrar
                 if (myStream) {
                     peer.call(conn.peer, myStream);
                 }
             }
             else if (data.type === 'chat') {
-                // Repassa o chat para os outros
                 connections.forEach(c => {
                     if (c.peer !== conn.peer && c.open) c.send(data);
                 });
@@ -224,22 +289,23 @@ function initHost() {
             renderUserList();
             
             if(userLeft) {
-                addChatMessage({ username: 'Sistema', avatar: 'https://cdn.discordapp.com/embed/avatars/3.png' }, `${userLeft.username} saiu da sala.`);
+                const leaveMsg = `${userLeft.username} saiu da sala. 👋`;
+                addChatMessage(sysProfile, leaveMsg);
+                broadcastData({ type: 'chat', profile: sysProfile, message: leaveMsg });
             }
             broadcastData({ type: 'room_update', users: roomUsers });
         });
     });
 
-    sendBtn.addEventListener('click', () => {
+    sendBtn.onclick = () => {
         const msg = chatInput.value;
         if (msg) {
             broadcastData({ type: 'chat', profile: myProfile, message: msg });
             addChatMessage(myProfile, msg);
             chatInput.value = '';
         }
-    });
+    };
     
-    // Função auxiliar para retransmitir dados do Host para todos
     function broadcastData(data) {
         connections.forEach(conn => {
             if (conn.open) conn.send(data);
@@ -247,5 +313,24 @@ function initHost() {
     }
 }
 
-// Inicializa checando se já está logado
+// 5. EVENTOS GERAIS DA PÁGINA (OTIMIZAÇÕES)
+chatInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        e.preventDefault(); 
+        sendBtn.click(); 
+    }
+});
+
+// Lógica de SAIR DA SALA
+leaveBtn.onclick = () => {
+    if(confirm("Deseja mesmo sair da sala?")) {
+        localStorage.removeItem('savedRoomId'); // Esquece a sala salva
+        if (peer) peer.destroy(); // Isso avisa imediatamente pro Host que a conexão caiu
+        
+        // Recarrega a página na URL raiz, o que vai fazer ele voltar pro modo Host ou Tela de Login
+        window.location.href = window.location.origin + window.location.pathname;
+    }
+};
+
+// Inicia o fluxo
 checkAuth();
