@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineStream Live - Sala de Cinema Virtual</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+    <!-- Tela de Autenticação -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box">
+            <h2>🍿 CineStream</h2>
+            <p>Faça login para entrar na sala do Weverson</p>
+            <button id="login-discord-btn">
+                <img src="https://assets-global.website-files.com/6257adef93867e50d84d30e2/636e0a6a49cf127bf92de1e2_icon_clyde_blurple_RGB.png" alt="Discord Logo">
+                Entrar com Discord
+            </button>
+        </div>
+    </div>
+
+    <!-- Interface Principal (Oculta até fazer login) -->
+    <div id="main-container" class="main-container" style="display: none;">
+        <div class="cinema-area">
+            <header>
+                <h1>SALA DE CINEMA - STREAMING AGORA!</h1>
+                <p>ASSISTINDO: <span id="viewer-count">0</span> | LINK: <a id="share-link" href="#">Gerar link</a></p>
+            </header>
+            
+            <div id="broadcaster-ui" style="display: none;">
+                <button id="start-btn">Começar a Compartilhar Tela</button>
+            </div>
+
+            <div class="screen-container">
+                <video id="video" autoplay playsinline controls muted></video>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <div class="user-list-section">
+                <h2>QUEM ESTÁ NA SALA</h2>
+                <ul id="user-list">
+                    <!-- Usuários aparecerão aqui -->
+                </ul>
+            </div>
+            
+            <div class="chat-section">
+                <h2>CHAT DA SALA</h2>
+                <div id="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="Digite sua mensagem...">
+                    <button id="send-btn">➤</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

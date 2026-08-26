@@ -1,0 +1,175 @@
+:root {
+    --bg-color: #121212;
+    --sidebar-bg: #1e1e1e;
+    --text-color: #e0e0e0;
+    --highlight-color: #5865F2; /* Azul Discord para botões principais */
+    --accent-color: #e74c3c; /* Vermelho Cinema */
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* --- TELA DE LOGIN --- */
+.login-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, #2c3e50 0%, #121212 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.login-box {
+    background-color: var(--sidebar-bg);
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    border: 1px solid #333;
+}
+
+.login-box h2 { margin-top: 0; color: var(--text-color); }
+.login-box p { color: #aaa; margin-bottom: 25px; }
+
+#login-discord-btn {
+    background-color: var(--highlight-color);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    transition: 0.2s;
+}
+
+#login-discord-btn img { height: 20px; }
+#login-discord-btn:hover { background-color: #4752C4; }
+
+/* --- INTERFACE PRINCIPAL --- */
+.main-container {
+    display: flex;
+    height: 100vh;
+}
+
+.cinema-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: radial-gradient(circle, #1a1a2e 0%, #0f0f1a 100%);
+    position: relative;
+}
+
+header h1 { margin: 0 0 10px 0; font-size: 1.5rem; color: var(--accent-color); }
+header p { margin: 0; color: #888; }
+#share-link { color: var(--highlight-color); text-decoration: none; font-weight: bold; }
+
+.screen-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    margin-top: 20px;
+    box-shadow: 0 0 40px rgba(88, 101, 242, 0.1);
+}
+
+video {
+    width: 95%;
+    max-width: 1200px;
+    height: auto;
+    background: #000;
+    border-radius: 8px;
+    border: 2px solid #333;
+}
+
+#broadcaster-ui {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+}
+
+#start-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+}
+
+#start-btn:hover { background-color: #c0392b; }
+
+/* --- BARRA LATERAL --- */
+.sidebar {
+    width: 320px;
+    background-color: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid #222;
+}
+
+.sidebar h2 { font-size: 1.1rem; color: #888; padding: 15px; margin: 0; border-bottom: 1px solid #333; background: #1a1a1a; }
+
+.user-list-section { border-bottom: 2px solid #222; max-height: 35%; overflow-y: auto; }
+#user-list { list-style: none; padding: 0; margin: 0; }
+
+.user-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background-color: #444;
+    margin-right: 12px;
+    object-fit: cover;
+}
+
+.user-name { font-weight: bold; font-size: 0.95rem; }
+
+.user-status {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background-color: #2ecc71;
+    margin-left: auto;
+}
+
+.chat-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+.message { display: flex; flex-direction: column; }
+.message .header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.message .header img { width: 24px; height: 24px; border-radius: 50%; }
+.message .username { font-weight: bold; font-size: 0.9rem; color: var(--highlight-color); }
+.message .text { color: #ddd; font-size: 0.95rem; line-height: 1.4; padding-left: 32px; }
+
+.chat-input-area { display: flex; padding: 15px; background-color: #161616; border-top: 1px solid #333; }
+#chat-input {
+    flex: 1; background-color: #2a2a2a; border: 1px solid #444; color: white;
+    padding: 10px; border-radius: 6px; margin-right: 10px; font-size: 0.95rem;
+}
+#chat-input:focus { outline: none; border-color: var(--highlight-color); }
+#send-btn { background: var(--highlight-color); border: none; color: white; width: 40px; border-radius: 6px; cursor: pointer; font-size: 1.2rem; transition: 0.2s; }
+#send-btn:hover { background: #4752C4; }
